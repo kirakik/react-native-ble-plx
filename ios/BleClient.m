@@ -202,6 +202,7 @@ RCT_EXPORT_METHOD(writeCharacteristicForDevice:(NSString*)deviceIdentifier
 }
 
 RCT_EXPORT_METHOD(writeCharacteristicForService:(nonnull NSNumber*)serviceIdentifier
+				  deviceIdentifier:(NSString*)deviceIdentifier
                              characteristicUUID:(NSString*)characteristicUUID
                                     valueBase64:(NSString*)valueBase64
                                    withResponse:(BOOL)response
@@ -218,6 +219,7 @@ RCT_EXPORT_METHOD(writeCharacteristicForService:(nonnull NSNumber*)serviceIdenti
 }
 
 RCT_EXPORT_METHOD(writeCharacteristic:(nonnull NSNumber*)characteristicIdentifier
+				  deviceIdentifier:(NSString*)deviceIdentifier
                           valueBase64:(NSString*)valueBase64
                          withResponse:(BOOL)response
                         transactionId:(NSString*)transactionId
