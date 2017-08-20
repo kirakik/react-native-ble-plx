@@ -552,12 +552,34 @@ public class BleClientManager : NSObject {
                                                     serviceUUID: serviceUUID,
                                                     characteristicUUID: characteristicUUID)
         safeWriteCharacteristicForDevice(observable,
-                                         deviceIdentifier: deviceIdentifier,
                                          value: value,
                                          response: response,
                                          transactionId: transactionId,
                                          promise: SafePromise(resolve: resolve, reject: reject))
     }
+
+	public func writeCharacteristicForDeviceWithMtu(deviceIdentifier: String,
+	                                                serviceUUID: String,
+	                                                characteristicUUID: String,
+	                                                valueBase64: String,
+	                                                response: Bool,
+	                                                transactionId: String,
+	                                                resolve: @escaping Resolve,
+	                                                reject: @escaping Reject) {
+		guard let value = Data(base64Encoded: valueBase64, options: .ignoreUnknownCharacters) else {
+			return BleError.invalidWriteDataForCharacteristic(characteristicUUID, data: valueBase64).callReject(reject)
+		}
+
+		let observable = getCharacteristicForDevice(deviceIdentifier,
+		                                            serviceUUID: serviceUUID,
+		                                            characteristicUUID: characteristicUUID)
+		mtuWriteCharacteristicForDevice(observable,
+		                                 deviceIdentifier: deviceIdentifier,
+		                                 value: value,
+		                                 response: response,
+		                                 transactionId: transactionId,
+		                                 promise: SafePromise(resolve: resolve, reject: reject))
+	}
 
     public func writeCharacteristicForService(  _ serviceIdentifier: Double,
 												   deviceIdentifier: String,
@@ -575,7 +597,6 @@ public class BleClientManager : NSObject {
                                                      characteristicUUID: characteristicUUID)
 
         safeWriteCharacteristicForDevice(observable,
-                                         deviceIdentifier: deviceIdentifier,
                                          value: value,
                                          response: response,
                                          transactionId: transactionId,
@@ -595,7 +616,6 @@ public class BleClientManager : NSObject {
         }
 
         safeWriteCharacteristicForDevice(getCharacteristic(characteristicIdentifier),
-                                         deviceIdentifier: deviceIdentifier,
                                          value: value,
                                          response: response,
                                          transactionId: transactionId,
@@ -613,12 +633,12 @@ public class BleClientManager : NSObject {
 		}
 	}
 
-    private func safeWriteCharacteristicForDevice(_ characteristicObservable: Observable<Characteristic>,
-                                                  deviceIdentifier: String,
-                                                  value: Data,
-                                                  response: Bool,
-                                                  transactionId: String,
-                                                  promise: SafePromise) {
+	private func mtuWriteCharacteristicForDevice(_ characteristicObservable: Observable<Characteristic>,
+	                                              deviceIdentifier: String,
+	                                              value: Data,
+	                                              response: Bool,
+	                                              transactionId: String,
+	                                              promise: SafePromise) {
 		guard let deviceId = UUID(uuidString: deviceIdentifier) else {
 			return BleError.peripheralNotFound(deviceIdentifier).callReject(promise)
 		}
@@ -633,10 +653,10 @@ public class BleClientManager : NSObject {
 		}
 
 		let encodedData = encodeData(data: value)
-        let disposable = characteristicObservable
-            .flatMap { [weak self] characteristic -> Observable<Characteristic> in
+		let disposable = characteristicObservable
+			.flatMap { [weak self] characteristic -> Observable<Characteristic> in
 				return self?.write(characteristic, data: encodedData, response: response) ?? Observable.error(BleError.cancelled())
-            }.flatMap { characteristic -> Observable<Characteristic> in
+			}.flatMap { characteristic -> Observable<Characteristic> in
 				return device?.monitorWrite(for: characteristic) ?? Observable.error(BleError.cancelled())
 			}.flatMap { [weak self] characteristic -> Observable<Characteristic> in
 				guard let `self` = self else { return Observable.error(BleError.cancelled()) }
@@ -646,6 +666,33 @@ public class BleClientManager : NSObject {
 					return Observable.just(characteristic)
 				}
 			}.subscribe(
+				onNext: { characteristic in
+					promise.resolve(characteristic.asJSObject)
+			},
+				onError: { error in
+					error.bleError.callReject(promise)
+			},
+				onCompleted: nil,
+				onDisposed: { [weak self] in
+					self?.transactions.removeDisposable(transactionId)
+					BleError.cancelled().callReject(promise)
+				}
+		)
+
+		transactions.replaceDisposable(transactionId, disposable: disposable)
+	}
+
+    private func safeWriteCharacteristicForDevice(_ characteristicObservable: Observable<Characteristic>,
+                                                  value: Data,
+                                                  response: Bool,
+                                                  transactionId: String,
+                                                  promise: SafePromise) {
+
+        let disposable = characteristicObservable
+            .flatMap {
+                $0.writeValue(value, type: response ? .withResponse : .withoutResponse)
+            }
+            .subscribe(
                 onNext: { characteristic in
                     promise.resolve(characteristic.asJSObject)
                 },

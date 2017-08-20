@@ -372,6 +372,26 @@ export interface BleModuleInterface {
    * @private
    */
   readCharacteristic(characteristicIdentifer: Identifier, transactionId: TransactionId): Promise<NativeCharacteristic>,
+  /**
+   * Write value to characteristic.
+   * 
+   * @param {DeviceId} deviceIdentifier Connected device identifier
+   * @param {UUID} serviceUUID Service UUID
+   * @param {UUID} characteristicUUID Characteristic UUID
+   * @param {Base64} valueBase64 Value to be set coded in Base64
+   * @param {boolean} withResponse True if write should be with response
+   * @param {TransactionId} transactionId Transaction handle used to cancel operation
+   * @returns {Promise<NativeCharacteristic>} Characteristic which saved passed value
+   * @private
+   */
+  writeCharacteristicWithMtuForDevice(
+    deviceIdentifier: DeviceId,
+    serviceUUID: UUID,
+    characteristicUUID: UUID,
+    valueBase64: Base64,
+    withResponse: boolean,
+    transactionId: TransactionId,
+  ): Promise<NativeCharacteristic>,
 
   /**
    * Write value to characteristic.

@@ -603,6 +603,30 @@ export class BleManager {
     return new Characteristic(nativeCharacteristic, this)
   }
 
+  async writeCharacteristicForDeviceWithMtu(
+    withResponse: boolean,
+    deviceIdentifier: DeviceId,
+    serviceUUID: UUID,
+    characteristicUUID: UUID,
+    base64Value: Base64,
+    transactionId: ?TransactionId,
+  ): Promise<Characteristic> {
+    if (!transactionId) {
+      transactionId = this._nextUniqueID()
+    }
+    const nativeCharacteristic = await this._callPromise(
+      BleModule.writeCharacteristicWithMtuForDevice(
+        deviceIdentifier,
+        serviceUUID,
+        characteristicUUID,
+        base64Value,
+        withResponse,
+        transactionId,
+      ),
+    )
+    return new Characteristic(nativeCharacteristic, this)
+  }
+
   /**
    * Write {@link Characteristic} value with response.
    * 

@@ -201,6 +201,24 @@ RCT_EXPORT_METHOD(writeCharacteristicForDevice:(NSString*)deviceIdentifier
                                     reject:reject];
 }
 
+RCT_EXPORT_METHOD(writeCharacteristicWithMtuForDevice:(NSString*)deviceIdentifier
+				  serviceUUID:(NSString*)serviceUUID
+				  characteristicUUID:(NSString*)characteristicUUID
+				  valueBase64:(NSString*)valueBase64
+				  withResponse:(BOOL)response
+				  transactionId:(NSString*)transactionId
+				  resolver:(RCTPromiseResolveBlock)resolve
+				  rejecter:(RCTPromiseRejectBlock)reject) {
+	[_manager writeCharacteristicForDeviceWithMtu:deviceIdentifier
+							   serviceUUID:serviceUUID
+						characteristicUUID:characteristicUUID
+							   valueBase64:valueBase64
+								  response:response
+							 transactionId:transactionId
+								   resolve:resolve
+									reject:reject];
+}
+
 RCT_EXPORT_METHOD(writeCharacteristicForService:(nonnull NSNumber*)serviceIdentifier
 				  deviceIdentifier:(NSString*)deviceIdentifier
                              characteristicUUID:(NSString*)characteristicUUID
@@ -270,10 +288,10 @@ RCT_EXPORT_METHOD(monitorCharacteristic:(nonnull NSNumber*)characteristicIdentif
 }
 
 RCT_EXPORT_METHOD(getMtuForDevice:(NSString*)deviceIdentifier
-				  withResponse:(NSString*)response
+				  withResponse:(BOOL)response
 				  resolver:(RCTPromiseResolveBlock)resolve
 				  rejecter:(RCTPromiseRejectBlock)reject) {
-	[_manager getMtuForDeviceWithDeviceIdentifier:deviceIdentifier
+	[_manager getMtuForDevice:deviceIdentifier
 									 withResponse:response
 										  resolve:resolve
 										   reject:reject];
