@@ -558,7 +558,7 @@ public class BleClientManager : NSObject {
                                          promise: SafePromise(resolve: resolve, reject: reject))
     }
 
-	public func writeCharacteristicForDeviceWithMtu(deviceIdentifier: String,
+	public func writeCharacteristicForDeviceWithLength(deviceIdentifier: String,
 	                                                serviceUUID: String,
 	                                                characteristicUUID: String,
 	                                                valueBase64: String,
@@ -573,12 +573,12 @@ public class BleClientManager : NSObject {
 		let observable = getCharacteristicForDevice(deviceIdentifier,
 		                                            serviceUUID: serviceUUID,
 		                                            characteristicUUID: characteristicUUID)
-		mtuWriteCharacteristicForDevice(observable,
-		                                 deviceIdentifier: deviceIdentifier,
-		                                 value: value,
-		                                 response: response,
-		                                 transactionId: transactionId,
-		                                 promise: SafePromise(resolve: resolve, reject: reject))
+		writeCharacteristicWithLengthForDevice(observable,
+		                                       deviceIdentifier: deviceIdentifier,
+		                                       value: value,
+		                                       response: response,
+		                                       transactionId: transactionId,
+		                                       promise: SafePromise(resolve: resolve, reject: reject))
 	}
 
     public func writeCharacteristicForService(  _ serviceIdentifier: Double,
@@ -633,7 +633,46 @@ public class BleClientManager : NSObject {
 		}
 	}
 
-	private func mtuWriteCharacteristicForDevice(_ characteristicObservable: Observable<Characteristic>,
+	private func writeCharacteristicWithLengthForDevice(_ characteristicObservable: Observable<Characteristic>,
+	                                                    deviceIdentifier: String,
+	                                                    value: Data,
+	                                                    response: Bool,
+	                                                    transactionId: String,
+	                                                    promise: SafePromise) {
+		guard let deviceId = UUID(uuidString: deviceIdentifier), let device = connectedPeripherals[deviceId] else {
+			return BleError.peripheralNotFound(deviceIdentifier).callReject(promise)
+		}
+
+		if self.mtu == 0 {
+			if #available(iOS 9.0, *) {
+				self.mtu = device.maximumWriteValueLength(for: response ? .withResponse : .withoutResponse)
+			} else {
+				self.mtu = 120
+			}
+		}
+
+		let encodedData = encodeData(data: value)
+		let disposable = characteristicObservable
+			.flatMap { [weak self] characteristic -> Observable<Characteristic> in
+				return self?.write(characteristic, data: encodedData, response: response) ?? Observable.error(BleError.cancelled())
+			}.subscribe(
+				onNext: { characteristic in
+					promise.resolve(characteristic.asJSObject)
+			},
+				onError: { error in
+					error.bleError.callReject(promise)
+			},
+				onCompleted: nil,
+				onDisposed: { [weak self] in
+					self?.transactions.removeDisposable(transactionId)
+					BleError.cancelled().callReject(promise)
+				}
+		)
+
+		transactions.replaceDisposable(transactionId, disposable: disposable)
+	}
+
+	private func writeCharacteristicWithLengthWithRetryForDevice(_ characteristicObservable: Observable<Characteristic>,
 	                                              deviceIdentifier: String,
 	                                              value: Data,
 	                                              response: Bool,

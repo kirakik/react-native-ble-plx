@@ -10,7 +10,7 @@ import type {
   TransactionId,
   Base64,
   ScanOptions,
-  ConnectionOptions
+  ConnectionOptions,
 } from './TypeDefinition'
 
 /**
@@ -76,7 +76,7 @@ export interface NativeDevice {
    * List of overflow service UUIDs.
    * @private
    */
-  overflowServiceUUIDs: ?Array<UUID>
+  overflowServiceUUIDs: ?Array<UUID>,
 }
 
 /**
@@ -103,7 +103,7 @@ export interface NativeService {
    * Value indicating whether the type of service is primary or secondary.
    * @private
    */
-  isPrimary: boolean
+  isPrimary: boolean,
 }
 
 /**
@@ -170,7 +170,7 @@ export interface NativeCharacteristic {
    * Characteristic value if present
    * @private
    */
-  value: ?Base64
+  value: ?Base64,
 }
 
 /**
@@ -185,7 +185,7 @@ export interface NativeBleRestoredState {
    * @memberof NativeBleRestoredState
    * @private
    */
-  connectedPeripherals: Array<NativeDevice>
+  connectedPeripherals: Array<NativeDevice>,
 }
 
 /**
@@ -248,7 +248,10 @@ export interface BleModuleInterface {
    * @returns {Promise<NativeDevice>} Connected device with updated RSSI value.
    * @private
    */
-  readRSSIForDevice(deviceIdentifier: DeviceId, transactionId: TransactionId): Promise<NativeDevice>,
+  readRSSIForDevice(
+    deviceIdentifier: DeviceId,
+    transactionId: TransactionId,
+  ): Promise<NativeDevice>,
 
   /**
    * Get Mtu for device.
@@ -318,7 +321,10 @@ export interface BleModuleInterface {
     * @returns {Promise<Array<NativeCharacteristic>>} List of characteristics available in service.
     * @private
     */
-  characteristicsForDevice(deviceIdentifier: DeviceId, serviceUUID: UUID): Promise<Array<NativeCharacteristic>>,
+  characteristicsForDevice(
+    deviceIdentifier: DeviceId,
+    serviceUUID: UUID,
+  ): Promise<Array<NativeCharacteristic>>,
 
   /**
     * List of discovered characteristics for specified service.
@@ -345,7 +351,7 @@ export interface BleModuleInterface {
     deviceIdentifier: DeviceId,
     serviceUUID: UUID,
     characteristicUUID: UUID,
-    transactionId: TransactionId
+    transactionId: TransactionId,
   ): Promise<NativeCharacteristic>,
 
   /**
@@ -360,7 +366,7 @@ export interface BleModuleInterface {
   readCharacteristicForService(
     serviceIdentifier: Identifier,
     characteristicUUID: UUID,
-    transactionId: TransactionId
+    transactionId: TransactionId,
   ): Promise<NativeCharacteristic>,
 
   /**
@@ -371,7 +377,10 @@ export interface BleModuleInterface {
    * @returns {Promise<NativeCharacteristic>} Characteristic for which value was read
    * @private
    */
-  readCharacteristic(characteristicIdentifer: Identifier, transactionId: TransactionId): Promise<NativeCharacteristic>,
+  readCharacteristic(
+    characteristicIdentifer: Identifier,
+    transactionId: TransactionId,
+  ): Promise<NativeCharacteristic>,
   /**
    * Write value to characteristic.
    * 
@@ -384,7 +393,7 @@ export interface BleModuleInterface {
    * @returns {Promise<NativeCharacteristic>} Characteristic which saved passed value
    * @private
    */
-  writeCharacteristicWithMtuForDevice(
+  writeCharacteristicForDeviceWithLength(
     deviceIdentifier: DeviceId,
     serviceUUID: UUID,
     characteristicUUID: UUID,
@@ -411,7 +420,7 @@ export interface BleModuleInterface {
     characteristicUUID: UUID,
     valueBase64: Base64,
     withResponse: boolean,
-    transactionId: TransactionId
+    transactionId: TransactionId,
   ): Promise<NativeCharacteristic>,
 
   /**
@@ -430,7 +439,7 @@ export interface BleModuleInterface {
     characteristicUUID: UUID,
     valueBase64: Base64,
     withResponse: boolean,
-    transactionId: TransactionId
+    transactionId: TransactionId,
   ): Promise<NativeCharacteristic>,
 
   /**
@@ -447,7 +456,7 @@ export interface BleModuleInterface {
     characteristicIdentifier: Identifier,
     valueBase64: Base64,
     withResponse: boolean,
-    transactionId: TransactionId
+    transactionId: TransactionId,
   ): Promise<NativeCharacteristic>,
 
   /**
@@ -464,7 +473,7 @@ export interface BleModuleInterface {
     deviceIdentifier: DeviceId,
     serviceUUID: UUID,
     characteristicUUID: UUID,
-    transactionId: TransactionId
+    transactionId: TransactionId,
   ): Promise<void>,
 
   /**
@@ -479,7 +488,7 @@ export interface BleModuleInterface {
   monitorCharacteristicForService(
     serviceIdentifier: Identifier,
     characteristicUUID: UUID,
-    transactionId: TransactionId
+    transactionId: TransactionId,
   ): Promise<void>,
 
   /**
@@ -490,7 +499,10 @@ export interface BleModuleInterface {
    * @returns {Promise<void>} Value which is returned when monitoring was cancelled or resulted in error
    * @private
    */
-  monitorCharacteristic(characteristicIdentifier: Identifier, transactionId: TransactionId): Promise<void>,
+  monitorCharacteristic(
+    characteristicIdentifier: Identifier,
+    transactionId: TransactionId,
+  ): Promise<void>,
 
   // Other APIs
 
@@ -547,7 +559,7 @@ export interface BleModuleInterface {
    * Device disconnected as [Error?, NativeDevice]
    * @private
    */
-  DisconnectionEvent: string
+  DisconnectionEvent: string,
 }
 
 export const BleModule: BleModuleInterface = NativeModules.BleClientManager

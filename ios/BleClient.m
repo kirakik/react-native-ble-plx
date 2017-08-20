@@ -201,7 +201,7 @@ RCT_EXPORT_METHOD(writeCharacteristicForDevice:(NSString*)deviceIdentifier
                                     reject:reject];
 }
 
-RCT_EXPORT_METHOD(writeCharacteristicWithMtuForDevice:(NSString*)deviceIdentifier
+RCT_EXPORT_METHOD(writeCharacteristicForDeviceWithLength:(NSString*)deviceIdentifier
 				  serviceUUID:(NSString*)serviceUUID
 				  characteristicUUID:(NSString*)characteristicUUID
 				  valueBase64:(NSString*)valueBase64
@@ -209,7 +209,7 @@ RCT_EXPORT_METHOD(writeCharacteristicWithMtuForDevice:(NSString*)deviceIdentifie
 				  transactionId:(NSString*)transactionId
 				  resolver:(RCTPromiseResolveBlock)resolve
 				  rejecter:(RCTPromiseRejectBlock)reject) {
-	[_manager writeCharacteristicForDeviceWithMtu:deviceIdentifier
+	[_manager writeCharacteristicForDeviceWithLength:deviceIdentifier
 							   serviceUUID:serviceUUID
 						characteristicUUID:characteristicUUID
 							   valueBase64:valueBase64

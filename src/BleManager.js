@@ -331,7 +331,9 @@ export class BleManager {
    * @private
    */
   async getMtuForDevice(deviceIdentifier: DeviceId, withResponse: boolean): Promise<number> {
-    const deviceMtu = await this._callPromise(BleModule.getMtuForDevice(deviceIdentifier, withResponse))
+    const deviceMtu = await this._callPromise(
+      BleModule.getMtuForDevice(deviceIdentifier, withResponse),
+    )
     return deviceMtu
   }
 
@@ -603,7 +605,7 @@ export class BleManager {
     return new Characteristic(nativeCharacteristic, this)
   }
 
-  async writeCharacteristicForDeviceWithMtu(
+  async writeCharacteristicForDeviceWithLength(
     withResponse: boolean,
     deviceIdentifier: DeviceId,
     serviceUUID: UUID,
@@ -615,7 +617,7 @@ export class BleManager {
       transactionId = this._nextUniqueID()
     }
     const nativeCharacteristic = await this._callPromise(
-      BleModule.writeCharacteristicWithMtuForDevice(
+      BleModule.writeCharacteristicForDeviceWithLength(
         deviceIdentifier,
         serviceUUID,
         characteristicUUID,
