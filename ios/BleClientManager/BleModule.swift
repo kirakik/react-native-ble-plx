@@ -639,31 +639,30 @@ public class BleClientManager : NSObject {
 	                                              response: Bool,
 	                                              transactionId: String,
 	                                              promise: SafePromise) {
-		guard let deviceId = UUID(uuidString: deviceIdentifier) else {
+		guard let deviceId = UUID(uuidString: deviceIdentifier), let device = connectedPeripherals[deviceId] else {
 			return BleError.peripheralNotFound(deviceIdentifier).callReject(promise)
 		}
 
-		let device = connectedPeripherals[deviceId]
 		if self.mtu == 0 {
 			if #available(iOS 9.0, *) {
-				self.mtu = device?.maximumWriteValueLength(for: response ? .withResponse : .withoutResponse) ?? 250
+				self.mtu = device.maximumWriteValueLength(for: response ? .withResponse : .withoutResponse)
 			} else {
-				self.mtu = 250
+				self.mtu = 120
 			}
 		}
 
 		let encodedData = encodeData(data: value)
 		let disposable = characteristicObservable
 			.flatMap { [weak self] characteristic -> Observable<Characteristic> in
-				return self?.write(characteristic, data: encodedData, response: response) ?? Observable.error(BleError.cancelled())
-			}.flatMap { characteristic -> Observable<Characteristic> in
-				return device?.monitorWrite(for: characteristic) ?? Observable.error(BleError.cancelled())
-			}.flatMap { [weak self] characteristic -> Observable<Characteristic> in
-				guard let `self` = self else { return Observable.error(BleError.cancelled()) }
-				if !self.remainingData.isEmpty {
-					return self.write(characteristic, data: self.remainingData, response: response)
-				} else {
-					return Observable.just(characteristic)
+				return device.monitorWrite(for: characteristic).flatMap { (characteristic) -> Observable<Characteristic> in
+					return self?.write(characteristic, data: encodedData, response: response) ?? Observable.error(BleError.cancelled())
+					}.flatMap { [weak self] characteristic -> Observable<Characteristic> in
+						guard let `self` = self else { return Observable.error(BleError.cancelled()) }
+						if !self.remainingData.isEmpty {
+							return self.write(characteristic, data: self.remainingData, response: response)
+						} else {
+							return Observable.just(characteristic)
+						}
 				}
 			}.subscribe(
 				onNext: { characteristic in
