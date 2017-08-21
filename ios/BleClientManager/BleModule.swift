@@ -573,7 +573,7 @@ public class BleClientManager : NSObject {
 		let observable = getCharacteristicForDevice(deviceIdentifier,
 		                                            serviceUUID: serviceUUID,
 		                                            characteristicUUID: characteristicUUID)
-		writeCharacteristicWithLengthForDevice(observable,
+		writeCharacteristicWithLengthWithRetryForDevice(observable,
 		                                       deviceIdentifier: deviceIdentifier,
 		                                       value: value,
 		                                       response: response,
@@ -625,8 +625,10 @@ public class BleClientManager : NSObject {
 	private func write(_ characteristic: Characteristic, data: Data, response: Bool) -> Observable<Characteristic> {
 		remainingData.removeAll()
 		if self.mtu > data.count {
+			print("KILOG: MTU \(self.mtu) IS HIGHER THAN DATA LENGTH \(data.count)")
 			return characteristic.writeValue(data, type: response ? .withResponse : .withoutResponse)
 		} else {
+			print("KILOG: MTU \(self.mtu) IS LOWER THAN DATA LENGTH \(data.count)")
 			let dataToGo = data.subdata(in: 0..<self.mtu)
 			self.remainingData.append(data.subdata(in: self.mtu..<data.count))
 			return characteristic.writeValue(dataToGo, type: response ? .withResponse : .withoutResponse)
@@ -684,7 +686,9 @@ public class BleClientManager : NSObject {
 
 		if self.mtu == 0 {
 			if #available(iOS 9.0, *) {
+				print("KILOG: SETTING MTU")
 				self.mtu = device.maximumWriteValueLength(for: response ? .withResponse : .withoutResponse)
+				print("KILOG: MTU = \(self.mtu)")
 			} else {
 				self.mtu = 120
 			}
@@ -692,17 +696,22 @@ public class BleClientManager : NSObject {
 
 		let encodedData = encodeData(data: value)
 		let disposable = characteristicObservable
-			.flatMap { [weak self] characteristic -> Observable<Characteristic> in
-				return device.monitorWrite(for: characteristic).flatMap { (characteristic) -> Observable<Characteristic> in
-					return self?.write(characteristic, data: encodedData, response: response) ?? Observable.error(BleError.cancelled())
-					}.flatMap { [weak self] characteristic -> Observable<Characteristic> in
-						guard let `self` = self else { return Observable.error(BleError.cancelled()) }
-						if !self.remainingData.isEmpty {
-							return self.write(characteristic, data: self.remainingData, response: response)
-						} else {
-							return Observable.just(characteristic)
-						}
+			.flatMap { characteristic -> Observable<Characteristic> in
+				print("KILOG: MONITORING")
+				return device.monitorWrite(for: characteristic)
+			}.flatMap { [weak self] characteristic -> Observable<Characteristic> in
+				guard let `self` = self else { return Observable.error(BleError.cancelled()) }
+				print("KILOG: JUST WROTE SOMETHING")
+				if !self.remainingData.isEmpty {
+					print("KILOG: REMAINING DATA IS NOT EMPTY")
+					return self.write(characteristic, data: self.remainingData, response: response)
+				} else {
+					print("KILOG: REMAINING DATA IS EMPTY")
+					return Observable.just(characteristic)
 				}
+			}.flatMap { [weak self] characteristic -> Observable<Characteristic> in
+				print("KILOG: WRITING \(encodedData)")
+				return self?.write(characteristic, data: encodedData, response: response) ?? Observable.error(BleError.cancelled())
 			}.subscribe(
 				onNext: { characteristic in
 					promise.resolve(characteristic.asJSObject)
