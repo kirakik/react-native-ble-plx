@@ -581,7 +581,7 @@ public class BleClientManager : NSObject {
 		                                       promise: SafePromise(resolve: resolve, reject: reject))
 	}
 
-    public func writeCharacteristicForService(  _ serviceIdentifier: Double,
+    public func writeCharacteristicForService(_ serviceIdentifier: Double,
 												   deviceIdentifier: String,
                                                  characteristicUUID: String,
                                                         valueBase64: String,
@@ -635,6 +635,18 @@ public class BleClientManager : NSObject {
 		}
 	}
 
+	private func asdWrite(_ characteristic: Characteristic, data: Data, response: Bool) -> Observable<Data> {
+		if self.mtu > data.count {
+			print("KILOG: MTU \(self.mtu) IS HIGHER THAN DATA LENGTH \(data.count)")
+			return characteristic.writeValue(data, type: response ? .withResponse : .withoutResponse).map { _ in Data() }
+		} else {
+			print("KILOG: MTU \(self.mtu) IS LOWER THAN DATA LENGTH \(data.count)")
+			let dataToGo = data.subdata(in: 0..<self.mtu)
+			let remainingData = data.subdata(in: self.mtu..<data.count)
+			return characteristic.writeValue(dataToGo, type: response ? .withResponse : .withoutResponse).map { _ in remainingData}
+		}
+	}
+
 	private func writeCharacteristicWithLengthForDevice(_ characteristicObservable: Observable<Characteristic>,
 	                                                    deviceIdentifier: String,
 	                                                    value: Data,
@@ -684,35 +696,25 @@ public class BleClientManager : NSObject {
 			return BleError.peripheralNotFound(deviceIdentifier).callReject(promise)
 		}
 
-		if self.mtu == 0 {
-			if #available(iOS 9.0, *) {
-				print("KILOG: SETTING MTU")
-				self.mtu = device.maximumWriteValueLength(for: response ? .withResponse : .withoutResponse)
-				print("KILOG: MTU = \(self.mtu)")
-			} else {
-				self.mtu = 120
-			}
+		if #available(iOS 9.0, *) {
+			print("KILOG: SETTING MTU")
+			self.mtu = device.maximumWriteValueLength(for: response ? .withResponse : .withoutResponse)
+			print("KILOG: MTU = \(self.mtu)")
+		} else {
+			self.mtu = 120
 		}
 
 		let encodedData = encodeData(data: value)
 		let disposable = characteristicObservable
-			.flatMap { characteristic -> Observable<Characteristic> in
-				print("KILOG: MONITORING")
-				return device.monitorWrite(for: characteristic)
-			}.flatMap { [weak self] characteristic -> Observable<Characteristic> in
-				guard let `self` = self else { return Observable.error(BleError.cancelled()) }
-				print("KILOG: JUST WROTE SOMETHING")
-				if !self.remainingData.isEmpty {
-					print("KILOG: REMAINING DATA IS NOT EMPTY")
-					return self.write(characteristic, data: self.remainingData, response: response)
-				} else {
-					print("KILOG: REMAINING DATA IS EMPTY")
-					return Observable.just(characteristic)
-				}
-			}.flatMap { [weak self] characteristic -> Observable<Characteristic> in
-				print("KILOG: WRITING \(encodedData)")
-				return self?.write(characteristic, data: encodedData, response: response) ?? Observable.error(BleError.cancelled())
-			}.subscribe(
+			.flatMap { [weak self] characteristic -> Observable<Characteristic> in
+				return self?.writeUntilDone(characteristic: characteristic,
+				                           response: response,
+				                           device: device,
+				                           dataObservable: Observable.just(encodedData))
+					.map { _ in characteristic}
+				 ?? Observable.error(BleError.cancelled())
+			}
+			.subscribe(
 				onNext: { characteristic in
 					promise.resolve(characteristic.asJSObject)
 			},
@@ -727,6 +729,40 @@ public class BleClientManager : NSObject {
 		)
 
 		transactions.replaceDisposable(transactionId, disposable: disposable)
+	}
+
+	func asd(_ characteristicObservable: Observable<Characteristic>,
+	         deviceIdentifier: String,
+	         value: Data,
+	         response: Bool,
+	         transactionId: String,
+	         promise: SafePromise) {
+		guard let deviceId = UUID(uuidString: deviceIdentifier), let device = connectedPeripherals[deviceId] else {
+			return BleError.peripheralNotFound(deviceIdentifier).callReject(promise)
+		}
+		let encodedData = encodeData(data: value)
+
+		let disposable = characteristicObservable
+			.flatMap { [weak self] characteristic -> Observable<Characteristic> in
+				print("KILOG: WRITING \(encodedData)")
+				return self?.write(characteristic, data: encodedData, response: response) ?? Observable.error(BleError.cancelled())
+		}
+	}
+
+	func writeUntilDone(characteristic: Characteristic, response: Bool, device: Peripheral, dataObservable: Observable<Data>) -> Observable<Data> {
+// Watch out retain cycles!!!!!!
+		return dataObservable
+		.flatMap { (data) -> Observable<Data> in
+			guard data.count > 0 else {
+				return dataObservable
+			}
+			let writeObs = self.asdWrite(characteristic, data: data, response: response)
+				.flatMap { (data) -> Observable<Data> in
+					return device.monitorWrite(for: characteristic)
+						.map { _ in data }
+			}
+			return self.writeUntilDone(characteristic: characteristic, response: response, device: device, dataObservable: writeObs)
+		}
 	}
 
     private func safeWriteCharacteristicForDevice(_ characteristicObservable: Observable<Characteristic>,
