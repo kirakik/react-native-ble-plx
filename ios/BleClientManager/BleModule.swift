@@ -746,12 +746,6 @@ public class BleClientManager : NSObject {
 			}
 			print("<<<<KILOG Writting Data \(data) >>>> length\(data.count)")
 			let writeObs = self.asdWrite(characteristic, data: data, response: response)
-				.flatMap { (data) -> Observable<Data> in
-					print("<<<<KILOG Listed for next write \(data) >>>> length\(data.count)")
-					return device.monitorWrite(for: characteristic)
-						.debug("KILOG - Monitor Write Debug", trimOutput: false)
-						.map { _ in data }
-			}
 			return self.writeUntilDone(characteristic: characteristic, response: response, device: device, dataObservable: writeObs)
 		}
 	}
