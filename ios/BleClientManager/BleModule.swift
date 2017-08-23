@@ -714,11 +714,14 @@ public class BleClientManager : NSObject {
 					.map { _ in characteristic}
 				 ?? Observable.error(BleError.cancelled())
 			}
+			.debug(">>>>> KILOG Final Write Debug", trimOutput: false)
 			.subscribe(
 				onNext: { characteristic in
+					print("<!---- KILOG OnNext resolving promisse >>>")
 					promise.resolve(characteristic.asJSObject)
 			},
 				onError: { error in
+					print("<!---- KILOG OnError! >>>")
 					error.bleError.callReject(promise)
 			},
 				onCompleted: nil,
@@ -731,34 +734,22 @@ public class BleClientManager : NSObject {
 		transactions.replaceDisposable(transactionId, disposable: disposable)
 	}
 
-	func asd(_ characteristicObservable: Observable<Characteristic>,
-	         deviceIdentifier: String,
-	         value: Data,
-	         response: Bool,
-	         transactionId: String,
-	         promise: SafePromise) {
-		guard let deviceId = UUID(uuidString: deviceIdentifier), let device = connectedPeripherals[deviceId] else {
-			return BleError.peripheralNotFound(deviceIdentifier).callReject(promise)
-		}
-		let encodedData = encodeData(data: value)
-
-		let disposable = characteristicObservable
-			.flatMap { [weak self] characteristic -> Observable<Characteristic> in
-				print("KILOG: WRITING \(encodedData)")
-				return self?.write(characteristic, data: encodedData, response: response) ?? Observable.error(BleError.cancelled())
-		}
-	}
 
 	func writeUntilDone(characteristic: Characteristic, response: Bool, device: Peripheral, dataObservable: Observable<Data>) -> Observable<Data> {
-// Watch out retain cycles!!!!!!
+		// Watch out retain cycles!!!!!!
+		print("<<<<KILOG Start Write>>>>")
 		return dataObservable
 		.flatMap { (data) -> Observable<Data> in
 			guard data.count > 0 else {
+				print("KILOG - Finished writting")
 				return dataObservable
 			}
+			print("<<<<KILOG Writting Data \(data) >>>> length\(data.count)")
 			let writeObs = self.asdWrite(characteristic, data: data, response: response)
 				.flatMap { (data) -> Observable<Data> in
+					print("<<<<KILOG Listed for next write \(data) >>>> length\(data.count)")
 					return device.monitorWrite(for: characteristic)
+						.debug("KILOG - Monitor Write Debug", trimOutput: false)
 						.map { _ in data }
 			}
 			return self.writeUntilDone(characteristic: characteristic, response: response, device: device, dataObservable: writeObs)
