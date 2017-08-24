@@ -658,7 +658,7 @@ public class BleClientManager : NSObject {
 		}
 
 		if self.mtu == 0 {
-			if #available(iOS 9.0, *) {
+			if #available(iOS 10.0, *) {
 				self.mtu = device.maximumWriteValueLength(for: response ? .withResponse : .withoutResponse)
 			} else {
 				self.mtu = 120
@@ -696,12 +696,11 @@ public class BleClientManager : NSObject {
 			return BleError.peripheralNotFound(deviceIdentifier).callReject(promise)
 		}
 
-		if #available(iOS 9.0, *) {
+		if #available(iOS 10.0, *) {
 			print("KILOG: SETTING MTU")
-			self.mtu = device.maximumWriteValueLength(for: response ? .withResponse : .withoutResponse)
-			print("KILOG: MTU = \(self.mtu)")
+			self.mtu = 170
 		} else {
-			self.mtu = 120
+			self.mtu = 150
 		}
 
 		let encodedData = encodeData(data: value)
