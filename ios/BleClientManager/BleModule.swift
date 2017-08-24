@@ -520,6 +520,21 @@ public class BleClientManager : NSObject {
 
     // MARK: Writing ---------------------------------------------------------------------------------------------------
 
+	public func encodeWithTotalLength(data: Data, sizeTotal: Int) -> Data {
+		var sizeArray = [UInt8]()
+
+		// convert from an unsigned long int to a 4-byte array
+		sizeArray.append(UInt8((sizeTotal >> 24) & 0xFF))
+		sizeArray.append(UInt8((sizeTotal >> 16) & 0xFF))
+		sizeArray.append(UInt8((sizeTotal >> 8) & 0xFF))
+		sizeArray.append(UInt8((sizeTotal >> 0 ) & 0xFF))
+
+		var encoded = Data(bytes: sizeArray)
+		encoded.append(data)
+
+		return encoded
+	}
+
 	public func encodeData(data: Data) -> Data {
 		var sizeArray = [UInt8]()
 		let sizeTotal = data.count
@@ -703,13 +718,13 @@ public class BleClientManager : NSObject {
 			self.mtu = 150
 		}
 
-		let encodedData = encodeData(data: value)
 		let disposable = characteristicObservable
 			.flatMap { [weak self] characteristic -> Observable<Characteristic> in
 				return self?.writeUntilDone(characteristic: characteristic,
 				                           response: response,
 				                           device: device,
-				                           dataObservable: Observable.just(encodedData))
+				                           totalDataLength: value.count,
+				                           dataObservable: Observable.just(value))
 					.map { _ in characteristic}
 				 ?? Observable.error(BleError.cancelled())
 			}
@@ -734,7 +749,7 @@ public class BleClientManager : NSObject {
 	}
 
 
-	func writeUntilDone(characteristic: Characteristic, response: Bool, device: Peripheral, dataObservable: Observable<Data>) -> Observable<Data> {
+	func writeUntilDone(characteristic: Characteristic, response: Bool, device: Peripheral, totalDataLength: Int, dataObservable: Observable<Data>) -> Observable<Data> {
 		// Watch out retain cycles!!!!!!
 		print("<<<<KILOG Start Write>>>>")
 		return dataObservable
@@ -743,9 +758,10 @@ public class BleClientManager : NSObject {
 				print("KILOG - Finished writting")
 				return dataObservable
 			}
+			let encodedData = self.encodeWithTotalLength(data: data, sizeTotal: totalDataLength)
 			print("<<<<KILOG Writting Data \(data) >>>> length\(data.count)")
-			let writeObs = self.asdWrite(characteristic, data: data, response: response)
-			return self.writeUntilDone(characteristic: characteristic, response: response, device: device, dataObservable: writeObs)
+			let writeObs = self.asdWrite(characteristic, data: encodedData, response: response)
+			return self.writeUntilDone(characteristic: characteristic, response: response, device: device, totalDataLength: totalDataLength, dataObservable: writeObs)
 		}
 	}
 
